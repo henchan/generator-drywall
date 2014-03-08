@@ -19,6 +19,7 @@ Make a directory for your new app.
     $ mkdir {my_drywall_app} 
     $ cd {my_drywall_app} 
 
+### Yeoman
 Run the Yeoman Drywall Generator and answer his questions about your app. 
 
     $ yo drywall
@@ -29,7 +30,8 @@ Download dependent modules
 
     $ bower install
 
-Minify, uglify javascripts and serve the new app
+### New App
+Minify, uglify javascripts and serve your new app
 
     $ grunt
    
