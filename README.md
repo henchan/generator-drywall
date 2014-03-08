@@ -1,5 +1,5 @@
 This Yeoman generator installs and configures a Drywall app. It supports [version 0.9.26] (https://github.com/jedireza/drywall/tree/5a6c76a05b8d55b9193efa403ca3fc7d1488d65d). Optionally, it also installs a simple user specified CRUD app on top of Drywall.
-
+This generator has been tested on Drywall v0.9.26 
 
 ### Prerequisites
 First, install the Drywall prerequsities. See [Drywall Requirements] (https://github.com/jedireza/drywall#requirements). Return here after you've fulfilled the Requirements section
@@ -8,19 +8,6 @@ Next, install [Yeoman] (http://yeoman.io/gettingstarted.html) and the Yeoman Dry
 
     $ npm install yo -g 
     $ npm install generator-drywall -g 
-
-### Clone Drywall
-
-Clone Drywall into your projects directory. This generator has been tested on Drywall v0.9.26 
-
-     $ cd {my_projects_directory}
-     $ git clone https://github.com/jedireza/drywall.git ./drywall
-
-(Optionally) Switch to version 0.9.26   
-
-     $ cd ./drywall
-     git checkout 5a6c76a05b
-     cd {my_projects_directory}
 
 Make a new directory for your app and cd into it.
 

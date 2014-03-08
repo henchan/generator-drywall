@@ -1,3 +1,4 @@
+drywall/*
 node_modules/*
 .nodemonignore
 *.log

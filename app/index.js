@@ -3,11 +3,29 @@ var util = require('util');
 var path = require('path');
 var yeoman = require('yeoman-generator');
 var chalk = require('chalk');
+var sys = require('sys');
 
 var mongojs = require('mongojs');
+var simpleGit = require('simple-git');	
+
+var generatorName='generator-drywall'
+var generatorPath;
+
+var drywall_versions = {
+	"latest" : null, // do not remove this key
+	"0.9.27" : "5a6c76a05b8d55b9193efa403ca3fc7d1488d65d",
+	"0.9.26" : "5a6c76a05b8d55b9193efa403ca3fc7d1488d65d"
+};
+
+var initCap = function (inStr) {
+	return inStr.slice(0,1).toUpperCase() + inStr.slice(1);
+};
 
 var DrywallGenerator = yeoman.generators.Base.extend({
   init: function () {
+  
+  generatorPath = this.src._base.slice(0, this.src._base.indexOf(generatorName) + generatorName.length);
+  console.log("generatorPath " + generatorPath);
   
     this.env.options.appPath = this.options.appPath || 'app';
 	this.config.set('appPath', this.env.options.appPath);
@@ -55,18 +73,13 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		  default: 'Wine Rack'
 		},
 		{
-		  type: 'input',
-		  name: 'dwPathFromTemplate',
-		  message: 'Tell me the relative path to your cloned Drywall project.',
-		  default: '../drywall/'
+		  type: 'list',
+		  name: 'dryWallCloneVersion',
+		  message: 'Tell me which version of jedireza/drywall to clone',
+		  choices: Object.keys(drywall_versions),
+		  default: 'latest'
 		},
-/* 		{
-		  type: 'input',
-		  name: 'appPath',
-		  message: 'Tell me which directory to install your app into',
-		  default: './' 
-		},
- */		{
+		{
 		  type: 'confirm',
 		  name: 'customApp',
 		  message: 'Do you want a custom installation?',
@@ -216,15 +229,12 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 
     this.prompt(prompts, function (props) {
 	
+		this.appPath = './'; 
+		this.gitProject = 'drywall';
+		this.dwPath = this.gitProject+'/';
+		this.dwAbsolutePath = generatorPath+'/'+this.dwPath;
 		this.projectName = props.projectName;
-		this.dwPath = props.dwPathFromTemplate + 
-						(props.dwPathFromTemplate.slice(props.dwPathFromTemplate.length-1) === '/' ? 
-						'' : '/'); // TODO validate existence
-		this.dwPathFromTemplate = '../../'+this.dwPath;
-/* 		this.appPath = props.appPath + 
-						(props.appPath.slice(props.appPath.length-1) === '/' ? 
-						'' : '/'); // TODO 1) validate 2) only works on project root						
- */		this.appPath = './'; 
+		this.dryWallCloneVersion = props.dryWallCloneVersion;
 		this.customApp = props.customApp;
 		this.appName = props.appName.toLowerCase();
 		this.keyWordSingular = props.keyWordSingular.toLowerCase();
@@ -259,9 +269,6 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		else {
 			this.dbString = 'localhost/'+this.dbName
 		}
-
-		
-	  
 		done();
     }.bind(this));
   },
@@ -269,23 +276,45 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 	app: function () {
 		this.mkdir(this.appPath);
 	},
+	
+	dw_clone_source: function () {
+		console.log('Cloning Drywall source into '+this.dwAbsolutePath+'   ...'); 
+	    var done = this.async();
+		simpleGit(generatorPath)
+			.clone('https://github.com/jedireza/drywall.git', this.gitProject, function () {
+			done();
+		});
+	},
+	
+	dw_checkout_version: function () {
+		console.log('git cloned');
+		
+		if (this.dryWallCloneVersion != 'latest') {
+			var done = this.async();
+			simpleGit(this.dwAbsolutePath)
+				.checkout(drywall_versions[this.dryWallCloneVersion], function() {
+					done();
+				});
+			console.log('git checked out version '+this.dryWallCloneVersion);
+		}
+	},
 
   	git: function () {
-	  this.copy(this.dwPathFromTemplate+'.gitignore', './.gitignore');
+	  this.copy(this.dwAbsolutePath+'.gitignore', './.gitignore');
 	},
 
 	bower: function () {	
 	  this.write('./.bowerrc', '{\n"directory": "./bower_components"\n}');
-	  this.copy(this.dwPathFromTemplate+'bower.json', './bower.json');
+	  this.copy(this.dwAbsolutePath+'bower.json', './bower.json');
 	},
 	
 	jshint: function () {
-	  this.copy(this.dwPathFromTemplate+'.jshintrc-client', './.jshintrc-client');
-	  this.copy(this.dwPathFromTemplate+'.jshintrc-server', './.jshintrc-server');
+	  this.copy(this.dwAbsolutePath+'.jshintrc-client', './.jshintrc-client');
+	  this.copy(this.dwAbsolutePath+'.jshintrc-server', './.jshintrc-server');
 	},
 
 	gruntfile: function () {
-//	  this.copy(this.dwPathFromTemplate+'Gruntfile.js', './Gruntfile.js');
+//	  this.copy(this.dwAbsolutePath+'Gruntfile.js', './Gruntfile.js');
 	},
 
 	packageJSON: function () {
@@ -294,23 +323,18 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 
   baseDrywall: function () {
   
-	this.directory(this.dwPathFromTemplate+'layouts', 	this.appPath+'layouts');
-	this.directory(this.dwPathFromTemplate+'views', 	this.appPath+'views');
-	this.directory(this.dwPathFromTemplate+'public', 	this.appPath+'public');
-	this.directory(this.dwPathFromTemplate+'schema', 	this.appPath+'schema');
- 	this.directory(this.dwPathFromTemplate+'node_modules', 	this.appPath+'node_modules');
+	this.directory(this.dwAbsolutePath+'layouts', 	this.appPath+'layouts');
+	this.directory(this.dwAbsolutePath+'views', 	this.appPath+'views');
+	this.directory(this.dwAbsolutePath+'public', 	this.appPath+'public');
+	this.directory(this.dwAbsolutePath+'schema', 	this.appPath+'schema');
+ 	this.directory(this.dwAbsolutePath+'node_modules', 	this.appPath+'node_modules');
  
-	this.copy(this.dwPathFromTemplate+'app.js', 			this.appPath+'app.js');
-	this.copy(this.dwPathFromTemplate+'passport.js', 		this.appPath+'passport.js');
-	this.copy(this.dwPathFromTemplate+'README.md', 			this.appPath+'README.md');
-	this.copy(this.dwPathFromTemplate+'LICENSE', 			this.appPath+'LICENSE');
+	this.copy(this.dwAbsolutePath+'app.js', 			this.appPath+'app.js');
+	this.copy(this.dwAbsolutePath+'passport.js', 		this.appPath+'passport.js');
+	this.copy(this.dwAbsolutePath+'README.md', 			this.appPath+'README.md');
+	this.copy(this.dwAbsolutePath+'LICENSE', 			this.appPath+'LICENSE');
   },
-  
       
-   _initCap: function (inStr) {
-		return inStr.slice(0,1).toUpperCase() + inStr.slice(1);
-   },
-
    // Make templates for the files that will be copied and modified
   customNewFiles: function () {
      if (this.customApp) {
@@ -318,8 +342,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		var keyWordSingular = this.keyWordSingular, 
 			keyWordPlural = this.keyWordPlural, 
 			firstAtt = this.firstAttribute,
-			appName = this.appName,
-			initCap = this._initCap;
+			appName = this.appName;
 	 
 		var replaceStrings = function (sourceStr) {
 			var 
@@ -358,7 +381,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			{sourceDir: 'views/admin', files: [{source: 'index.js'}, {source: 'index.jade'}], targetDir: 'views/'+appName},
 			{sourceDir: 'public/views/admin', files: [{source: 'index.less'}], targetDir: 'public/views/'+appName},
 			{sourceDir: 'public/views/admin/statuses', files: [{source: 'index.js'}, {source: 'index.less'}, {source: 'details.js'}], targetDir: 'public/views/'+appName+'/'+keyWordPlural},
-			{sourceDir: 'schema', files: [{source: 'Status.js', target: this._initCap(keyWordSingular)+'.js'}]},
+			{sourceDir: 'schema', files: [{source: 'Status.js', target: initCap(keyWordSingular)+'.js'}]},
 			{sourceDir: 'layouts', files: [{source: 'admin.jade', target: appName+'.jade'}]},
 			{sourceDir: 'public/layouts', files: [{source: 'admin.js', target: appName+'.js'}, {source: 'admin.less', target: appName+'.less'}]}
 		];
@@ -373,9 +396,8 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			for (j=0; j<template.files.length; j++) {
 				sourceFile = template.files[j].source;
 				targetFile = template.files[j].target || sourceFile;
-				source = sourceDir+'/'+ sourceFile;
+				source = generatorPath+'/'+sourceDir+'/'+ sourceFile;
 				target = targetDir+'/'+ targetFile;
-				
 				sourceStr = this.readFileAsString(source);
 				targetStr = replaceStrings(sourceStr);
 				
@@ -389,7 +411,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 	if (this.customApp) {
 		var keyWordPlural = this.keyWordPlural, 
 			appName = this.appName,
-			source = this.dwPath+'routes.js', target = 'routes.js',
+			source = generatorPath+'/'+this.dwPath+'routes.js', target = 'routes.js',
 			sourceStr, targetStr,
 			insertBeforeString, 
 			appRoutesString =  
@@ -411,9 +433,9 @@ var DrywallGenerator = yeoman.generators.Base.extend({
   
   customModels: function () {
 	if (this.customApp) {
-		var keyWordSingularInitCap = this._initCap(this.keyWordSingular), 
-			appNameInitCap = this._initCap(this.appName),
-			source = this.dwPath+'models.js', target = 'models.js',
+		var keyWordSingularInitCap = initCap(this.keyWordSingular), 
+			appNameInitCap = initCap(this.appName),
+			source = generatorPath+'/'+this.dwPath+'models.js', target = 'models.js',
 			sourceStr, targetStr,
 			closingBrace,
 			appModelsString =  
@@ -432,7 +454,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 	if (this.customApp) {
 		var 
 			appName = this.appName,
-			source = this.dwPath+'Gruntfile.js', target = 'Gruntfile.js',
+			source = generatorPath+'/'+this.dwPath+'Gruntfile.js', target = 'Gruntfile.js',
 			sourceStr, targetStr,
 			insertBeforeString,
 			appGruntString =  
@@ -462,7 +484,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			this.template('_config.js', 'config.js');
 		}
 		else {
-			this.copy(this.dwPathFromTemplate+'config.example.js', 			this.appPath+'config.js');
+			this.copy(this.dwAbsolutePath+'config.example.js', 			this.appPath+'config.js');
 		}
 	},
   
