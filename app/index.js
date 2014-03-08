@@ -24,12 +24,11 @@ var initCap = function (inStr) {
 var DrywallGenerator = yeoman.generators.Base.extend({
   init: function () {
   
-  generatorPath = this.src._base.slice(0, this.src._base.indexOf(generatorName) + generatorName.length);
-  console.log("generatorPath " + generatorPath);
+	generatorPath = this.src._base.slice(0, this.src._base.indexOf(generatorName) + generatorName.length);
+	console.log("Using Generator at: " + generatorPath);
   
     this.env.options.appPath = this.options.appPath || 'app';
 	this.config.set('appPath', this.env.options.appPath);
-
 
     this.pkg = yeoman.file.readJSON(path.join(__dirname, '../package.json'));
 
