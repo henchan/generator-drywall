@@ -45,7 +45,6 @@ var DrywallGenerator = yeoman.generators.Base.extend({
     // have Yeoman greet the user
     console.log(this.yeoman);
 
-    // replace it with a short and sweet description of your generator
     console.log(chalk.magenta("You're using the Drywall generator. This will create a new Drywall App with optional basic crud features"));
 
  	var dependsCustom = function (input) {
@@ -66,9 +65,16 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		
 	var prompts = [
 		{
+		  type: 'list',
+		  name: 'newOrUpdate',
+		  message: 'Do you want me to make a new Drywall app or to add CRUD to an existing Drywall app?',
+　　　　choices: [ "New App'", "New App with CRUD", "Add CRUD to app" ],
+		  default: 'New App'
+		},
+　　　　{
 		  type: 'input',
 		  name: 'projectName',
-		  message: 'Tell me the name of your Drywall project',
+		  message: 'Tell me the name of your new Drywall project',
 		  default: 'Wine Rack'
 		},
 		{
