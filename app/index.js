@@ -66,7 +66,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 	var prompts = [
 		{
 		  type: 'list',
-		  name: 'newOrUpdate',
+		  name: 'installType',
 		  message: 'Do you want me to make a new Drywall app or to add CRUD to an existing Drywall app?',
 　　　　choices: [ "New App'", "New App with CRUD", "Add CRUD to app" ],
 		  default: 'New App'
@@ -259,6 +259,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		this.dwAdmin = props.dwAdmin;
 		this.dwAdminUser = props.dwAdminUser;
 		this.dwAdminEmail = props.dwAdminEmail;
+　　　　this.installType = props.installType;
 		
 		if (this.configDB == 'mongolab' || this.configDB == 'mongohq') {
 			this.dbString = 
