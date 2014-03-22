@@ -17,6 +17,14 @@ var drywall_versions = {
 	"0.9.26" : "5a6c76a05b8d55b9193efa403ca3fc7d1488d65d"
 };
 
+var keyWordsArr;
+
+var installTypes = [ 
+	"New app", 
+	"New app with CRUD", 
+	"Add CRUD to existing app" 
+];
+
 var initCap = function (inStr) {
 	return inStr.slice(0,1).toUpperCase() + inStr.slice(1);
 };
@@ -47,9 +55,13 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 
     console.log(chalk.magenta("You're using the Drywall generator. This will create a new Drywall App with optional basic crud features"));
 
- 	var dependsCustom = function (input) {
+ 	var dependsCreate = function (input) {
+		if (input.installType === installTypes[2]) { return false; } return true;	};
+  	var dependsCustom = function (input) {
+		if (input.installType === installTypes[0]) { return false; } return true;	};
+/*   	var dependsCustom = function (input) {
 		if (input.customApp) { return true; } return false;	};
- 	var dependsConfig = function (input) {
+ */ 	var dependsConfig = function (input) {
 		if (input.configApp) { return true; } return false;	};
  	var dependsMongo = function (input) {
 		if (input.noSQL && input.noSQL == "MongoDB") { return true; } return false; };
@@ -65,17 +77,17 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		
 	var prompts = [
 		{
-		  type: 'list',
+		  type: 'rawlist',
 		  name: 'installType',
 		  message: 'Do you want me to make a new Drywall app or to add CRUD to an existing Drywall app?',
-　　　　choices: [ "New App'", "New App with CRUD", "Add CRUD to app" ],
-		  default: 'New App'
+　　　　	  choices: installTypes,
+		  default: 1
 		},
-　　　　{
+　　　　	{
 		  type: 'input',
 		  name: 'projectName',
 		  message: 'Tell me the name of your new Drywall project',
-		  default: 'Wine Rack'
+		  default: 'Booze Rack'
 		},
 		{
 		  type: 'list',
@@ -83,12 +95,6 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		  message: 'Tell me which version of jedireza/drywall to clone',
 		  choices: Object.keys(drywall_versions),
 		  default: 'latest'
-		},
-		{
-		  type: 'confirm',
-		  name: 'customApp',
-		  message: 'Do you want a custom installation?',
-		  default: true 
 		},
 		{
 		  type: 'input',
@@ -99,23 +105,21 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		},
 		{
 		  type: 'input',
-		  name: 'keyWordSingular',
-		  message: 'Tell me the key word (singular) that characterises your project',
-		  default: 'wine',
-		  when : dependsCustom
-		},
-		{
-		  type: 'input',
-		  name: 'keyWordPlural',
-		  message: 'Tell me the plural of the previous key word',
-		  default: 'wines',
-		  when : dependsCustom
-		},
-		{
-		  type: 'input',
-		  name: 'firstAttribute',
-		  message: 'Tell me one attribute of your crud schema',
-		  default: 'grapes',
+		  name: 'keyWords',
+		  message: 'Tell me entity key word: singular (s), plural (p) and one attribute (a) for each of the CRUD pages you wish to create',
+		  default: '[{"s" : "wine", "p" : "wines", "a" : "grape"}, {"s" : "spirit", "p" : "spirits", "a" : "grain"}]',
+		  validate : function (keyWordsStr) {
+			try {
+				keyWordsArr = JSON.parse(keyWordsStr);
+				if (!Array.isArray(keyWordsArr)) {
+					return false; 
+				}
+			}
+			catch (e) {
+				return false; 
+			}
+			return true;
+		  },
 		  when : dependsCustom
 		},
 		{
@@ -150,7 +154,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		  name: 'configDB',
 		  message: 'Tell me about your Mongo DB. First, where is it hosted?',
 		  choices: [ "local", "mongolab", "mongohq" ],
-		  default: 'mongohq',
+		  default: 'local',
 		  when : dependsNotUseFullDBString
 		},
 		{
@@ -234,33 +238,19 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 
     this.prompt(prompts, function (props) {
 	
+		var i, prop;
+		
 		this.appPath = './'; 
 		this.gitProject = 'drywall';
 		this.dwPath = this.gitProject+'/';
 		this.dwAbsolutePath = generatorPath+'/'+this.dwPath;
-		this.projectName = props.projectName;
-		this.dryWallCloneVersion = props.dryWallCloneVersion;
-		this.customApp = props.customApp;
-		this.appName = props.appName.toLowerCase();
-		this.keyWordSingular = props.keyWordSingular.toLowerCase();
-		this.keyWordPlural = props.keyWordPlural.toLowerCase();
-		this.firstAttribute = props.firstAttribute;
-		this.configApp = props.configApp;
-		this.configDB = props.configDB;
-		this.dbString = props.dbString;
-		this.dbUser = props.dbUser;
-		this.dbPass = props.dbPass;
-		this.dbPort = props.dbPort;
-		this.dbServer = props.dbServer;
-		this.dbName = props.dbName;
-		this.smtpServer = props.smtpServer;
-		this.smtpUser = props.smtpUser;
-		this.smtpPass = props.smtpPass;
-		this.dwAdmin = props.dwAdmin;
-		this.dwAdminUser = props.dwAdminUser;
-		this.dwAdminEmail = props.dwAdminEmail;
-　　　　this.installType = props.installType;
-		
+	
+		for (i in props) {
+			prop = props[i];
+			this[i] = prop;
+			console.log('user requested: %s = %s', i, this[i]);
+		}
+				
 		if (this.configDB == 'mongolab' || this.configDB == 'mongohq') {
 			this.dbString = 
 				this.fullDBString ||
@@ -315,8 +305,10 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 	},
 	
 	jshint: function () {
-	  this.copy(this.dwAbsolutePath+'.jshintrc-client', './.jshintrc-client');
-	  this.copy(this.dwAbsolutePath+'.jshintrc-server', './.jshintrc-server');
+		if (this.installType !== installTypes[0]) {
+		  this.copy(this.dwAbsolutePath+'.jshintrc-client', './.jshintrc-client');
+		  this.copy(this.dwAbsolutePath+'.jshintrc-server', './.jshintrc-server');
+		}
 	},
 
 	gruntfile: function () {
@@ -324,53 +316,37 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 	},
 
 	packageJSON: function () {
-	  this.template('package.json', './package.json');
+		if (this.installType !== installTypes[2]) {
+			console.log("packageJSON %s", this.installType);
+			this.template('package.json', './package.json');
+		} 
 	},
 
   baseDrywall: function () {
-  
-	this.directory(this.dwAbsolutePath+'layouts', 	this.appPath+'layouts');
-	this.directory(this.dwAbsolutePath+'views', 	this.appPath+'views');
-	this.directory(this.dwAbsolutePath+'public', 	this.appPath+'public');
-	this.directory(this.dwAbsolutePath+'schema', 	this.appPath+'schema');
- 	this.directory(this.dwAbsolutePath+'node_modules', 	this.appPath+'node_modules');
- 
-	this.copy(this.dwAbsolutePath+'app.js', 			this.appPath+'app.js');
-	this.copy(this.dwAbsolutePath+'passport.js', 		this.appPath+'passport.js');
-	this.copy(this.dwAbsolutePath+'README.md', 			this.appPath+'README.md');
-	this.copy(this.dwAbsolutePath+'LICENSE', 			this.appPath+'LICENSE');
+ 	if (this.installType !== installTypes[2]) {
+		this.directory(this.dwAbsolutePath+'layouts', 	this.appPath+'layouts');
+		this.directory(this.dwAbsolutePath+'views', 	this.appPath+'views');
+		this.directory(this.dwAbsolutePath+'public', 	this.appPath+'public');
+		this.directory(this.dwAbsolutePath+'schema', 	this.appPath+'schema');
+		this.directory(this.dwAbsolutePath+'node_modules', 	this.appPath+'node_modules');
+	 
+		this.copy(this.dwAbsolutePath+'app.js', 			this.appPath+'app.js');
+		this.copy(this.dwAbsolutePath+'passport.js', 		this.appPath+'passport.js');
+		this.copy(this.dwAbsolutePath+'README.md', 			this.appPath+'README.md');
+		this.copy(this.dwAbsolutePath+'LICENSE', 			this.appPath+'LICENSE');
+	}
   },
       
    // Make templates for the files that will be copied and modified
   customNewFiles: function () {
-     if (this.customApp) {
-		console.log('Custom App files follows ...');
-		var keyWordSingular = this.keyWordSingular, 
-			keyWordPlural = this.keyWordPlural, 
-			firstAtt = this.firstAttribute,
-			appName = this.appName;
-	 
+	if (this.installType !== installTypes[0]) {
+		var keyWordSingular, keyWordPlural, firstAtt,
+			appName = this.appName,
+			i, j, sourceStr, targetStr, source, target, sourceDir, targetDir, sourceFile, template, targetFile, keyWords, templates, strPairs;
+
 		var replaceStrings = function (sourceStr) {
 			var 
-				targetStr, i, strPair, fromRegExp, 
-				strPairs = [
-					{from : 'admin/', 	to : appName+'\/'},
-					{from : 'statuses', to : keyWordPlural},
-					{from : 'status', 	to : keyWordSingular},
-					{from : 'Statuses', to : initCap(keyWordPlural)},
-					{from : 'Status', 	to : initCap(keyWordSingular) },
-					 // add first attribute to user created schema
-					{from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+firstAtt+": { type: String, default: '' }" },
-					{from : "pivot: '',", 	to : "pivot: '',\n\t  "+firstAtt+": ''," },
-					{from : "pivot: app.mainView", 	to : firstAtt+": app.mainView.model.get('"+firstAtt+"'),\n\t\tpivot: app.mainView" },
-					{from : "keys: 'pivot name'", 	to : "keys: 'pivot name "+firstAtt+"'" },
-					{from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+firstAtt },
-					{from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+firstAtt+" %>" },
-					{from : "name: req.body.name", 	to : "name: req.body.name,\n      "+firstAtt+": req.body."+firstAtt },
-					{from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+firstAtt+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+firstAtt+":\n        input.form-control(type='text', name='"+firstAtt+"', value!='<%- "+firstAtt+" %>')\n        span.help-block <%- errfor."+firstAtt+" %>" },
-					{from : "pivot: this.", 	to : ""+firstAtt+": this.$el.find('[name="+'"'+firstAtt+'"'+"]').val(),\n\t\t\pivot: this." }
-
-					];
+				targetStr, i, strPair, fromRegExp; 
 				
 			targetStr = sourceStr.slice(0);	
 			for (i=0; i<strPairs.length; i++) {
@@ -380,86 +356,17 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			}
 			return targetStr;
 		};
-	
-		var i, j, sourceStr, targetStr, source, target, sourceDir, targetDir, sourceFile, template, targetFile,
-		templates = [ 
-			{sourceDir: 'views/admin/statuses', files: [{source: 'index.js'}, {source: 'index.jade'}, {source: 'details.jade'}], targetDir: 'views/'+appName+'/'+keyWordPlural},
-			{sourceDir: 'views/admin', files: [{source: 'index.js'}, {source: 'index.jade'}], targetDir: 'views/'+appName},
-			{sourceDir: 'public/views/admin', files: [{source: 'index.less'}], targetDir: 'public/views/'+appName},
-			{sourceDir: 'public/views/admin/statuses', files: [{source: 'index.js'}, {source: 'index.less'}, {source: 'details.js'}], targetDir: 'public/views/'+appName+'/'+keyWordPlural},
-			{sourceDir: 'schema', files: [{source: 'Status.js', target: initCap(keyWordSingular)+'.js'}]},
-			{sourceDir: 'layouts', files: [{source: 'admin.jade', target: appName+'.jade'}]},
-			{sourceDir: 'public/layouts', files: [{source: 'admin.js', target: appName+'.js'}, {source: 'admin.less', target: appName+'.less'}]}
-		];
 		
-		for (i=0; i<templates.length; i++) {
-			template = templates[i];
-			sourceDir = this.dwPath+template.sourceDir;
-			targetDir = template.targetDir || template.sourceDir;
-			if (! template.targetDir) {
-				this.mkdir(targetDir);
-			}
-			for (j=0; j<template.files.length; j++) {
-				sourceFile = template.files[j].source;
-				targetFile = template.files[j].target || sourceFile;
-				source = generatorPath+'/'+sourceDir+'/'+ sourceFile;
-				target = targetDir+'/'+ targetFile;
-				sourceStr = this.readFileAsString(source);
-				targetStr = replaceStrings(sourceStr);
-				
-				this.write(target, targetStr);
-			}
-		}
-	  }
-   },
-   
-   customRoutes: function () {
-	if (this.customApp) {
-		var keyWordPlural = this.keyWordPlural, 
-			appName = this.appName,
-			source = generatorPath+'/'+this.dwPath+'routes.js', target = 'routes.js',
-			sourceStr, targetStr,
-			insertBeforeString, 
-			appRoutesString =  
-				"  //"+appName+" > "+keyWordPlural+"\n"+				
-				"  app.get('/"+appName+"/"+keyWordPlural+"/', require('./views/"+appName+"/"+keyWordPlural+"/index').find);\n"+
-				"  app.post('/"+appName+"/"+keyWordPlural+"/', require('./views/"+appName+"/"+keyWordPlural+"/index').create);\n"+
-				"  app.get('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').read);\n"+
-				"  app.put('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').update);\n"+
-				"  app.delete('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').delete);\n\n";
-				
-		sourceStr = this.readFileAsString(source);
-		insertBeforeString = sourceStr.lastIndexOf("//route not found"); // TODO find a more reliable way to insert routes before app.all
-		targetStr = sourceStr.slice(0, insertBeforeString)+
-					appRoutesString+
-					sourceStr.slice(insertBeforeString);				
-		this.write(target, targetStr);		
-	}
-  },
-  
-  customModels: function () {
-	if (this.customApp) {
-		var keyWordSingularInitCap = initCap(this.keyWordSingular), 
-			appNameInitCap = initCap(this.appName),
-			source = generatorPath+'/'+this.dwPath+'models.js', target = 'models.js',
-			sourceStr, targetStr,
-			closingBrace,
-			appModelsString =  
-				"\n  require('./schema/"+keyWordSingularInitCap+"')(app, mongoose);\n"
-				
-		sourceStr = this.readFileAsString(source);
-		closingBrace = sourceStr.lastIndexOf("}");
-		targetStr = sourceStr.slice(0, closingBrace)+
-					appModelsString+
-					sourceStr.slice(closingBrace);				
-		this.write(target, targetStr);		
-	}
-  },
-  
-  customGrunt: function () {
-	if (this.customApp) {
+		var routesSource = generatorPath+'/'+this.dwPath+'routes.js', routesTarget = 'routes.js',
+			routesSourceStr = this.readFileAsString(routesSource),
+			routesTargetStr;
+
+		var modelsSource = generatorPath+'/'+this.dwPath+'models.js', modelsTarget = 'models.js',
+			modelsSourceStr = this.readFileAsString(modelsSource),
+			modelsTargetStr;
+
+		//  custom Grunt
 		var 
-			appName = this.appName,
 			source = generatorPath+'/'+this.dwPath+'Gruntfile.js', target = 'Gruntfile.js',
 			sourceStr, targetStr,
 			insertBeforeString,
@@ -481,8 +388,97 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 					appGruntString+
 					targetStr.slice(insertBeforeString);				
 					
-		this.write(target, targetStr);		
+		this.write(target, targetStr);	
+		
+		// create new custom files per Keywords set
+		console.log('Custom App files follows ...');
+		for (keyWords = 0; keyWords < keyWordsArr.length; keyWords++) {
+			keyWordSingular = keyWordsArr[keyWords].s; 
+			keyWordPlural = keyWordsArr[keyWords].p;
+			firstAtt = keyWordsArr[keyWords].a;
+		 	
+			strPairs = [
+				{from : 'admin/', 	to : appName+'\/'},
+				{from : 'statuses', to : keyWordPlural},
+				{from : 'status', 	to : keyWordSingular},
+				{from : 'Statuses', to : initCap(keyWordPlural)},
+				{from : 'Status', 	to : initCap(keyWordSingular) },
+				 // add first attribute to user created schema
+				{from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+firstAtt+": { type: String, default: '' }" },
+				{from : "pivot: '',", 	to : "pivot: '',\n\t  "+firstAtt+": ''," },
+				{from : "pivot: app.mainView", 	to : firstAtt+": app.mainView.model.get('"+firstAtt+"'),\n\t\tpivot: app.mainView" },
+				{from : "keys: 'pivot name'", 	to : "keys: 'pivot name "+firstAtt+"'" },
+				{from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+firstAtt },
+				{from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+firstAtt+" %>" },
+				{from : "name: req.body.name", 	to : "name: req.body.name,\n      "+firstAtt+": req.body."+firstAtt },
+				{from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+firstAtt+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+firstAtt+":\n        input.form-control(type='text', name='"+firstAtt+"', value!='<%- "+firstAtt+" %>')\n        span.help-block <%- errfor."+firstAtt+" %>" },
+				{from : "pivot: this.", 	to : ""+firstAtt+": this.$el.find('[name="+'"'+firstAtt+'"'+"]').val(),\n\t\t\pivot: this." }
+			];
+			templates = [ 
+				{sourceDir: 'views/admin/statuses', files: [{source: 'index.js'}, {source: 'index.jade'}, {source: 'details.jade'}], targetDir: 'views/'+appName+'/'+keyWordPlural},
+				{sourceDir: 'views/admin', files: [{source: 'index.js'}, {source: 'index.jade'}], targetDir: 'views/'+appName},
+				{sourceDir: 'public/views/admin', files: [{source: 'index.less'}], targetDir: 'public/views/'+appName},
+				{sourceDir: 'public/views/admin/statuses', files: [{source: 'index.js'}, {source: 'index.less'}, {source: 'details.js'}], targetDir: 'public/views/'+appName+'/'+keyWordPlural},
+				{sourceDir: 'schema', files: [{source: 'Status.js', target: initCap(keyWordSingular)+'.js'}]},
+				{sourceDir: 'layouts', files: [{source: 'admin.jade', target: appName+'.jade'}]},
+				{sourceDir: 'public/layouts', files: [{source: 'admin.js', target: appName+'.js'}, {source: 'admin.less', target: appName+'.less'}]}
+			];
+			
+			for (i=0; i<templates.length; i++) {
+				template = templates[i];
+				sourceDir = this.dwPath+template.sourceDir;
+				targetDir = template.targetDir || template.sourceDir;
+				if (! template.targetDir) {
+					this.mkdir(targetDir);
+				}
+				for (j=0; j<template.files.length; j++) {
+					sourceFile = template.files[j].source;
+					targetFile = template.files[j].target || sourceFile;
+					source = generatorPath+'/'+sourceDir+'/'+ sourceFile;
+					target = targetDir+'/'+ targetFile;
+					sourceStr = this.readFileAsString(source);
+					targetStr = replaceStrings(sourceStr);
+					
+					this.write(target, targetStr);
+				}
+			}
+   
+			//  custom Routes
+			var 
+				insertBeforeString, 
+				appRoutesString =  
+					"  //"+appName+" > "+keyWordPlural+"\n"+				
+					"  app.get('/"+appName+"/"+keyWordPlural+"/', require('./views/"+appName+"/"+keyWordPlural+"/index').find);\n"+
+					"  app.post('/"+appName+"/"+keyWordPlural+"/', require('./views/"+appName+"/"+keyWordPlural+"/index').create);\n"+
+					"  app.get('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').read);\n"+
+					"  app.put('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').update);\n"+
+					"  app.delete('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').delete);\n\n";
+					
+			insertBeforeString = routesSourceStr.lastIndexOf("//route not found"); // TODO find a more reliable way to insert routes before app.all
+			routesTargetStr = routesSourceStr.slice(0, insertBeforeString)+
+						appRoutesString+
+						routesSourceStr.slice(insertBeforeString);				
+			routesSourceStr = routesTargetStr;
+			
+			//  custom Models
+			var keyWordSingularInitCap = initCap(keyWordSingular), 
+				appNameInitCap = initCap(appName),
+				sourceStr, targetStr,
+				closingBrace,
+				appModelsString =  
+					"\n  require('./schema/"+keyWordSingularInitCap+"')(app, mongoose);\n"
+					
+			closingBrace = modelsSourceStr.lastIndexOf("}");
+			modelsTargetStr = modelsSourceStr.slice(0, closingBrace)+
+						appModelsString+
+						modelsSourceStr.slice(closingBrace);
+			modelsSourceStr = modelsTargetStr;			
+		}
+		
+		this.write(routesTarget, routesTargetStr);
+		this.write(modelsTarget, modelsTargetStr);	
 	}
+	
   },
   
 	config: function () {
