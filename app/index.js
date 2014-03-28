@@ -420,13 +420,13 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			spacedAtts = "";
 			for (var k = 0, l = attsArr.length -1; k < attsArr.length; k++, l--) {
 				spacedAtts = spacedAtts + " " + attsArr[k];
-				strPairs.push({from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+attsArr[l]+": { type: String, default: '' }" + (l>1 ? "," : "" )});
+				strPairs.push({from : " name: { type: String, default: '' }", 	to : " name: { type: String, default: '' }\n\t,"+attsArr[l]+": { type: String, default: '' }"});
 				strPairs.push({from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+attsArr[l] });
 				strPairs.push({from : "pivot: app.mainView", 	to : attsArr[l]+": app.mainView.model.get('"+attsArr[l]+"'),\n\t\tpivot: app.mainView" });
 				strPairs.push({from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+attsArr[l]+" %>" });
 				strPairs.push({from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+attsArr[l]+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+attsArr[l]+":\n        input.form-control(type='text', name='"+attsArr[l]+"', value!='<%- "+attsArr[l]+" %>')\n        span.help-block <%- errfor."+attsArr[l]+" %>" });
 				strPairs.push({from : "pivot: '',", 	to : "pivot: '',\n\t  "+attsArr[l]+": ''," });
-				strPairs.push({from : "name: req.body.name", 	to : "name: req.body.name,\n      "+attsArr[l]+": req.body."+attsArr[l]+ (l>1 ? "," : "")});
+				strPairs.push({from : " name: req.body.name", 	to : " name: req.body.name\n      ,"+attsArr[l]+": req.body."+attsArr[l]});
 				strPairs.push({from : "pivot: this.", 	to : ""+attsArr[l]+": this.$el.find('[name="+'"'+attsArr[l]+'"'+"]').val(),\n\t\t\pivot: this." });
 			}
 			strPairs.push({from : "keys: 'pivot name'", 	to : "keys: 'pivot name"+spacedAtts+"'" });
