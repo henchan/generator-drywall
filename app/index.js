@@ -107,7 +107,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		  type: 'input',
 		  name: 'keyWords',
 		  message: 'Tell me entity key word: singular (s), plural (p) and one attribute (a) for each of the CRUD pages you wish to create',
-		  default: '[{"s" : "wine", "p" : "wines", "a" : "grape"}, {"s" : "spirit", "p" : "spirits", "a" : "grain"}]',
+		  default: '[{"s" : "wine", "p" : "wines", "a" : ["grape"]}, {"s" : "spirit", "p" : "spirits", "a" : ["grain", "proof"]}]',
 		  validate : function (keyWordsStr) {
 			try {
 				keyWordsArr = JSON.parse(keyWordsStr);
@@ -340,9 +340,10 @@ var DrywallGenerator = yeoman.generators.Base.extend({
    // Make templates for the files that will be copied and modified
   customNewFiles: function () {
 	if (this.installType !== installTypes[0]) {
-		var keyWordSingular, keyWordPlural, firstAtt,
+		var keyWordSingular, keyWordPlural, firstAtt, attsArr = [],
 			appName = this.appName,
-			i, j, sourceStr, targetStr, source, target, sourceDir, targetDir, sourceFile, template, targetFile, keyWords, templates, strPairs;
+			i, j, sourceStr, targetStr, source, target, sourceDir, targetDir, sourceFile, 
+			template, targetFile, keyWords, templates, strPairs, spacedAtts;
 
 		var replaceStrings = function (sourceStr) {
 			var 
@@ -396,24 +397,40 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			keyWordSingular = keyWordsArr[keyWords].s; 
 			keyWordPlural = keyWordsArr[keyWords].p;
 			firstAtt = keyWordsArr[keyWords].a;
+			attsArr = keyWordsArr[keyWords].a;
 		 	
 			strPairs = [
 				{from : 'admin/', 	to : appName+'\/'},
 				{from : 'statuses', to : keyWordPlural},
 				{from : 'status', 	to : keyWordSingular},
 				{from : 'Statuses', to : initCap(keyWordPlural)},
-				{from : 'Status', 	to : initCap(keyWordSingular) },
-				 // add first attribute to user created schema
-				{from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+firstAtt+": { type: String, default: '' }" },
-				{from : "pivot: '',", 	to : "pivot: '',\n\t  "+firstAtt+": ''," },
-				{from : "pivot: app.mainView", 	to : firstAtt+": app.mainView.model.get('"+firstAtt+"'),\n\t\tpivot: app.mainView" },
-				{from : "keys: 'pivot name'", 	to : "keys: 'pivot name "+firstAtt+"'" },
-				{from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+firstAtt },
-				{from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+firstAtt+" %>" },
-				{from : "name: req.body.name", 	to : "name: req.body.name,\n      "+firstAtt+": req.body."+firstAtt },
-				{from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+firstAtt+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+firstAtt+":\n        input.form-control(type='text', name='"+firstAtt+"', value!='<%- "+firstAtt+" %>')\n        span.help-block <%- errfor."+firstAtt+" %>" },
-				{from : "pivot: this.", 	to : ""+firstAtt+": this.$el.find('[name="+'"'+firstAtt+'"'+"]').val(),\n\t\t\pivot: this." }
+				{from : 'Status', 	to : initCap(keyWordSingular)}
+//				,{from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+firstAtt+": { type: String, default: '' }" },
+//				{from : "pivot: '',", 	to : "pivot: '',\n\t  "+firstAtt+": ''," },
+//				{from : "pivot: app.mainView", 	to : firstAtt+": app.mainView.model.get('"+firstAtt+"'),\n\t\tpivot: app.mainView" },
+//				{from : "keys: 'pivot name'", 	to : "keys: 'pivot name "+firstAtt+"'" },
+//				{from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+firstAtt },
+//				{from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+firstAtt+" %>" },
+//				{from : "name: req.body.name", 	to : "name: req.body.name,\n      "+firstAtt+": req.body."+firstAtt },
+//				{from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+firstAtt+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+firstAtt+":\n        input.form-control(type='text', name='"+firstAtt+"', value!='<%- "+firstAtt+" %>')\n        span.help-block <%- errfor."+firstAtt+" %>" },
+//				{from : "pivot: this.", 	to : ""+firstAtt+": this.$el.find('[name="+'"'+firstAtt+'"'+"]').val(),\n\t\t\pivot: this." }
 			];
+			
+			// add attributes to user created schema
+			spacedAtts = "";
+			for (var k = 0, l = attsArr.length -1; k < attsArr.length; k++, l--) {
+				spacedAtts = spacedAtts + " " + attsArr[k];
+				strPairs.push({from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+attsArr[l]+": { type: String, default: '' }" + (l>1 ? "," : "" )});
+				strPairs.push({from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+attsArr[l] });
+				strPairs.push({from : "pivot: app.mainView", 	to : attsArr[l]+": app.mainView.model.get('"+attsArr[l]+"'),\n\t\tpivot: app.mainView" });
+				strPairs.push({from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+attsArr[l]+" %>" });
+				strPairs.push({from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+attsArr[l]+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+attsArr[l]+":\n        input.form-control(type='text', name='"+attsArr[l]+"', value!='<%- "+attsArr[l]+" %>')\n        span.help-block <%- errfor."+attsArr[l]+" %>" });
+				strPairs.push({from : "pivot: '',", 	to : "pivot: '',\n\t  "+attsArr[l]+": ''," });
+				strPairs.push({from : "name: req.body.name", 	to : "name: req.body.name,\n      "+attsArr[l]+": req.body."+attsArr[l]+ (l>1 ? "," : "")});
+				strPairs.push({from : "pivot: this.", 	to : ""+attsArr[l]+": this.$el.find('[name="+'"'+attsArr[l]+'"'+"]').val(),\n\t\t\pivot: this." });
+			}
+			strPairs.push({from : "keys: 'pivot name'", 	to : "keys: 'pivot name"+spacedAtts+"'" });
+			
 			templates = [ 
 				{sourceDir: 'views/admin/statuses', files: [{source: 'index.js'}, {source: 'index.jade'}, {source: 'details.jade'}], targetDir: 'views/'+appName+'/'+keyWordPlural},
 				{sourceDir: 'views/admin', files: [{source: 'index.js'}, {source: 'index.jade'}], targetDir: 'views/'+appName},
