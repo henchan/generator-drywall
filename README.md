@@ -1,5 +1,5 @@
 This Yeoman generator installs and configures a standard Drywall app. 
-Optionally, it also installs and configures a simple user-specified CRUD app called Wine Rack on top of Drywall.
+Optionally, it also installs and configures a simple user-specified CRUD app called Booze Rack on top of Drywall.
  
 You may accept nearly all of Yeoman's defaults, if you have a MongoDB service running on your local machine with an empty DB called drywall, an administrator called drywall having a password of drywall. 
 However, defaults for SMTP server are no good. You must configure an SMTP server. If you have one, you may use your own gmail account. 
