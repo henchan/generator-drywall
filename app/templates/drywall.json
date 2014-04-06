@@ -1,0 +1,38 @@
+{
+	"appName" : "crud",
+	"keyWords" :
+	[
+	  {"s" : "image", "p" : "images", "a" : 
+		[  
+			{"name": "metadata_id", "type": "string"}, 
+			{"name": "file_name", "type": "string"}, 
+			{"name": "file_path", "type": "string"}
+		]
+	  },
+	  {"s" : "image_meta", "p" : "image_metas", "a" : 
+		[
+			{"name": "library", "type": "string"}, 
+			{"name": "book", "type": "string"}, 
+			{"name": "author", "type": "string"}, 
+			{"name": "year", "type": "string"}, 
+			{"name": "metadata_id", "type": "string"}, 
+			{"name": "x_pixels", "type": "string"}, 
+			{"name": "y_pixels", "type": "string"}
+		]
+	  }, 
+	  {"s" : "spot", "p" : "spots", "a" : 
+		[
+			{"name": "image_id", "type": "string"}, 
+			{"name": "x_offset", "type": "string"}, 
+			{"name": "y_offset", "type": "string"},
+			{"name": "transform", "type": "array"}		
+		]
+	  }, 
+	  {"s" : "trial", "p" : "trials", "a" : 
+		[
+			{"name": "spot_id", "type": "string"}, 
+			{"name": "cTag", "type": "string"}
+		]
+	  }
+	]
+}

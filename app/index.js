@@ -59,9 +59,11 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		if (input.installType === installTypes[2]) { return false; } return true;	};
   	var dependsCustom = function (input) {
 		if (input.installType === installTypes[0]) { return false; } return true;	};
-/*   	var dependsCustom = function (input) {
-		if (input.customApp) { return true; } return false;	};
- */ 	var dependsConfig = function (input) {
+  	var dependsCustomFile = function (input) {
+		if (input.customFile) { return true; } return false;	};
+  	var dependsNotCustomFile = function (input) {
+		if (input.customFile) { return false; } return  true;	};
+ 	var dependsConfig = function (input) {
 		if (input.configApp) { return true; } return false;	};
  	var dependsMongo = function (input) {
 		if (input.noSQL && input.noSQL == "MongoDB") { return true; } return false; };
@@ -97,11 +99,18 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 		  default: 'latest'
 		},
 		{
+		  type: 'confirm',
+		  name: 'customFile',
+		  message: 'Do you want to load customisation data from a file?',
+		  default: true,
+		  when : dependsCustom
+		},
+		{
 		  type: 'input',
 		  name: 'appName',
 		  message: 'Tell me the name of your custom app',
 		  default: 'crud',
-		  when : dependsCustom
+		  when : dependsNotCustomFile
 		},
 		{
 		  type: 'input',
@@ -120,7 +129,14 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 			}
 			return true;
 		  },
-		  when : dependsCustom
+		  when : dependsNotCustomFile
+		},
+		{
+		  type: 'input',
+		  name: 'customFileName',
+		  message: 'What is the path to your customisation data file?',
+		  default: 'templates/drywall.json',
+		  when : dependsCustomFile
 		},
 		{
 		  type: 'confirm',
@@ -347,13 +363,20 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 
 		var replaceStrings = function (sourceStr) {
 			var 
-				targetStr, i, strPair, fromRegExp; 
+				oldTargetStr, targetStr, i, strPair, fromRegExp; 
 				
 			targetStr = sourceStr.slice(0);	
 			for (i=0; i<strPairs.length; i++) {
+				oldTargetStr = targetStr;
 				strPair = strPairs[i]; 
 				fromRegExp = new RegExp(strPair.from, "g");
-				targetStr = targetStr.replace(fromRegExp, strPair.to);
+				targetStr = oldTargetStr.replace(fromRegExp, strPair.to);
+				if (oldTargetStr.length !== targetStr.length) {
+					console.log("%s go around. inserted at  %s  %s", i, oldTargetStr.length,  strPair.from);
+				}
+				if (strPair.from === "update(type\='button') Update") {
+					console.log("%s go around.", i);
+				}
 			}
 			return targetStr;
 		};
@@ -389,15 +412,20 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 					appGruntString+
 					targetStr.slice(insertBeforeString);				
 					
-		this.write(target, targetStr);	
+		this.write(target, targetStr);			
 		
-		// create new custom files per Keywords set
 		console.log('Custom App files follows ...');
-		for (keyWords = 0; keyWords < keyWordsArr.length; keyWords++) {
-			keyWordSingular = keyWordsArr[keyWords].s; 
-			keyWordPlural = keyWordsArr[keyWords].p;
-			firstAtt = keyWordsArr[keyWords].a;
-			attsArr = keyWordsArr[keyWords].a;
+		if (this.customFile) {
+			var customFileObj = yeoman.file.readJSON(path.join(__dirname, this.customFileName));
+			appName = this.appName = customFileObj.appName;
+			keyWordsArr = customFileObj.keyWords;
+		}		
+				
+		// create new custom files per entity
+		for (var entity = 0; entity < keyWordsArr.length; entity++) {
+			keyWordSingular = keyWordsArr[entity].s; 
+			keyWordPlural = keyWordsArr[entity].p;
+			attsArr = keyWordsArr[entity].a;
 		 	
 			strPairs = [
 				{from : 'admin/', 	to : appName+'\/'},
@@ -405,29 +433,71 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 				{from : 'status', 	to : keyWordSingular},
 				{from : 'Statuses', to : initCap(keyWordPlural)},
 				{from : 'Status', 	to : initCap(keyWordSingular)}
-//				,{from : "name: { type: String, default: '' }", 	to : "name: { type: String, default: '' },\n\t"+firstAtt+": { type: String, default: '' }" },
-//				{from : "pivot: '',", 	to : "pivot: '',\n\t  "+firstAtt+": ''," },
-//				{from : "pivot: app.mainView", 	to : firstAtt+": app.mainView.model.get('"+firstAtt+"'),\n\t\tpivot: app.mainView" },
-//				{from : "keys: 'pivot name'", 	to : "keys: 'pivot name "+firstAtt+"'" },
-//				{from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+firstAtt },
-//				{from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+firstAtt+" %>" },
-//				{from : "name: req.body.name", 	to : "name: req.body.name,\n      "+firstAtt+": req.body."+firstAtt },
-//				{from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+firstAtt+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+firstAtt+":\n        input.form-control(type='text', name='"+firstAtt+"', value!='<%- "+firstAtt+" %>')\n        span.help-block <%- errfor."+firstAtt+" %>" },
-//				{from : "pivot: this.", 	to : ""+firstAtt+": this.$el.find('[name="+'"'+firstAtt+'"'+"]').val(),\n\t\t\pivot: this." }
 			];
 			
 			// add attributes to user created schema
 			spacedAtts = "";
 			for (var k = 0, l = attsArr.length -1; k < attsArr.length; k++, l--) {
-				spacedAtts = spacedAtts + " " + attsArr[k];
-				strPairs.push({from : " name: { type: String, default: '' }", 	to : " name: { type: String, default: '' }\n\t,"+attsArr[l]+": { type: String, default: '' }"});
-				strPairs.push({from : "th.stretch name", 	to : "th.stretch name\n          th.stretch "+attsArr[l] });
-				strPairs.push({from : "pivot: app.mainView", 	to : attsArr[l]+": app.mainView.model.get('"+attsArr[l]+"'),\n\t\tpivot: app.mainView" });
-				strPairs.push({from : "td <%- name %>", 	to : "td <%- name %>\n    td <%- "+attsArr[l]+" %>" });
-				strPairs.push({from : "span.help-block <%- errfor.name %>", 	to : "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+attsArr[l]+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+attsArr[l]+":\n        input.form-control(type='text', name='"+attsArr[l]+"', value!='<%- "+attsArr[l]+" %>')\n        span.help-block <%- errfor."+attsArr[l]+" %>" });
-				strPairs.push({from : "pivot: '',", 	to : "pivot: '',\n\t  "+attsArr[l]+": ''," });
-				strPairs.push({from : " name: req.body.name", 	to : " name: req.body.name\n      ,"+attsArr[l]+": req.body."+attsArr[l]});
-				strPairs.push({from : "pivot: this.", 	to : ""+attsArr[l]+": this.$el.find('[name="+'"'+attsArr[l]+'"'+"]').val(),\n\t\t\pivot: this." });
+				var attName = attsArr[l].name;
+				spacedAtts = spacedAtts + " " + attsArr[k].name;
+				strPairs.push({
+					from 	: "th.stretch name", 	
+					to 		: "th.stretch name\n          th.stretch "+attName });
+				strPairs.push({
+					from 	: "pivot: app.mainView", 	
+					to 		: attName+": app.mainView.model.get('"+attName+"'),\n\t\tpivot: app.mainView" });
+				strPairs.push({
+					from 	: "td <%- name %>", 	
+					to 		: "td <%- name %>\n    td <%- "+attName+" %>" });
+				strPairs.push({
+					from 	: "pivot: '',", 	
+					to 		: "pivot: '',\n\t  "+attName+": ''," });
+				strPairs.push({
+					from 	: " name: req.body.name", 	
+					to 		: " name: req.body.name\n      ,"+attName+": req.body."+attName});
+				strPairs.push({
+					from 	: "pivot: this.", 	
+					to 		: ""+attName+": this.$el.find('[name="+'"'+attName+'"'+"]').val(),\n\t\t\pivot: this." });
+				if (attsArr[l].type === "string") {
+					strPairs.push({
+				// /views/admin/statuses/details.jade
+						from 	: "span.help-block <%- errfor.name %>", 	
+						to 		: "span.help-block <%- errfor.name %>\n      div.control-group(class!='<%- errfor."+attName+" ? "+'"has-error"'+" : "+'""'+" %>')\n        label.control-label "+attName+":\n        input.form-control(type='text', name='"+attName+"', value!='<%- "+attName+" %>')\n        span.help-block <%- errfor."+attName+" %>" });
+					strPairs.push({
+				// /schema/Status.js
+						from 	: " name: { type: String, default: '' }", 	
+						to 		: " name: { type: String, default: '' }\n\t,"+attName+": { type: String, default: '' }\n"});
+				}
+				else if (attsArr[l].type === "array") {	
+				// /schema/Status.js
+					strPairs.push({
+						from 	: " name: { type: String, default: '' }", 	
+						to 		: " name: { type: String, default: '' }\r\n\t,"+attName+"s: [{ name: String, permit: Boolean }]"});
+				// /views/admin/statuses/details.jade
+					strPairs.push({
+						from 	: "button.btn.btn-primary.btn-update\\(type='button'\\) Update", 	
+						to 		: "button.btn.btn-primary.btn-update(type='button') Update\r\n\r\n  script(type='text/template', id='tmpl-"+attName+"s')\r\n    fieldset\r\n      legend "+initCap(attName)+"s\r\n      div.alerts\r\n        |<% _.each(errors, function(err) { %>\r\n        div.alert.alert-danger.alert-dismissable\r\n          button.close(type='button', data-dismiss='alert') &times;\r\n          |<%- err %>\r\n        |<% }); %>\r\n        |<% if (success) { %>\r\n        div.alert.alert-info.alert-dismissable\r\n          button.close(type='button', data-dismiss='alert') &times;\r\n          | Changes have been saved.\r\n        |<% } %>\r\n      div.control-group(class!='<%- errfor.new"+initCap(attName)+" ? "+'"has-error" : ""'+" %>')\r\n        label.control-label New Setting:\r\n        div.input-group\r\n          input.form-control(name='new"+initCap(attName)+"', type='text', placeholder='enter a name')\r\n          div.input-group-btn\r\n            button.btn.btn-success.btn-add(type='button') Add\r\n        span.help-block <%- errfor.newUsername %>\r\n      div.control-group(class!='<%- errfor.new"+initCap(attName)+" ? "+'"has-error" : ""'+" %>')\r\n        label.control-label Settings:\r\n        div."+attName+"s\r\n          |<% _.each("+attName+"s, function("+attName+") { %>\r\n          div.input-group\r\n            input.form-control(disabled=true, value!='<%= "+attName+".name %>')\r\n            div.input-group-btn\r\n              |<% if ("+attName+".permit) { %>\r\n              button.btn.btn-default.btn-allow(type='button', disabled) Allow\r\n              button.btn.btn-default.btn-deny(type='button') Deny\r\n              |<% } else { %>\r\n              button.btn.btn-default.btn-allow(type='button') Allow\r\n              button.btn.btn-default.btn-deny(type='button', disabled) Deny\r\n              |<% } %>\r\n              button.btn.btn-danger.btn-delete(type='button')\r\n                i.fa.fa-trash-o.fa-inverse\r\n          |<% }); %>\r\n          |<% if ("+attName+"s.length == 0) { %>\r\n          span.badge\r\n            | no "+attName+"s defined\r\n          |<% } %>\r\n          span.help-block <%- errfor.settings %>\r\n      div.control-group\r\n        button.btn.btn-primary.btn-set(type='button') Save Settings"});					
+					strPairs.push({
+						from 	: "      div\\#details", 	
+						to 		: "      div#details\n      div#"+attName+"s"});
+				// /views/admin/statuses/index.js
+					strPairs.push({
+						from 	: "exports.delete = function\\(req, res, next\\){", 	
+						to 		: "exports."+attName+"s = function(req, res, next){ \r\n  var workflow = req.app.utility.workflow(req, res); \r\n \r\n  workflow.on('validate', function() { \r\n    if (!req.body."+attName+"s) { \r\n      workflow.outcome.errfor."+attName+"s = 'required'; \r\n      return workflow.emit('response'); \r\n    } \r\n    workflow.emit('patchSpot'); \r\n  }); \r\n \r\n  workflow.on('patchSpot', function() { \r\n    var fieldsToSet = { \r\n      "+attName+"s: req.body."+attName+"s \r\n    }; \r\n \r\n    req.app.db.models.Spot.findByIdAndUpdate(req.params.id, fieldsToSet, function(err, spot) { \r\n      if (err) { \r\n        return workflow.emit('exception', err); \r\n      } \r\n \r\n      workflow.outcome.spot = spot; \r\n      return workflow.emit('response'); \r\n    }); \r\n  }); \r\n \r\n  workflow.emit('validate'); \r\n}; \r\n\r\nexports.delete = function(req, res, next){"});
+				// /public/views/admin/statuses/details.js
+					strPairs.push({
+						from 	: "return response;\r\n    }\r\n  }\\);\r\n\r\n  app.HeaderView = Backbone.View.extend", 	
+						to 		: "return response;\r\n    }\r\n  });\r\n\r\n    app."+initCap(attName)+"s = Backbone.Model.extend({ \r\n    idAttribute: '_id', \r\n    defaults: { \r\n      success: false, \r\n      errors: [], \r\n      errfor: {}, \r\n      "+attName+"s: [], \r\n      new"+initCap(attName)+": '' \r\n    }, \r\n    url: function() { \r\n      return '/"+appName+"/"+keyWordSingular+"s/'+ app.mainView.model.id +'/"+attName+"s/'; \r\n    }, \r\n    parse: function(response) { \r\n      if (response.adminGroup) { \r\n        app.mainView.model.set(response.adminGroup); \r\n        delete response.adminGroup; \r\n      } \r\n \r\n      return response;\r\n     }\r\n   }); \r\n\napp.HeaderView = Backbone.View.extend"});
+					strPairs.push({
+						from 	: "this.model.save\\(\\);\r\n    }\r\n  }\\);\r\n\r\n\r\n      this.model.save\\(\\);\r\n    }\r\n  }\\);\r\n\r\n\r\n  app.MainView = Backbone.View.extend", 	
+						to 		: "this.model.save();\r\n    }\r\n  });\r\n\r\n\r\n      this.model.save();\r\n    }\r\n  });\r\n\r\n\r\n  app."+initCap(attName)+"sView = Backbone.View.extend({ \r\n    el: '#"+attName+"s', \r\n    template: _.template( $('#tmpl-"+attName+"s').html() ), \r\n    events: { \r\n      'click .btn-add': 'add', \r\n      'click .btn-allow': 'allow', \r\n      'click .btn-deny': 'deny', \r\n      'click .btn-delete': 'delete', \r\n      'click .btn-set': 'save"+initCap(attName)+"s' \r\n    }, \r\n     initialize: function() { \r\n      this.model = new app."+initCap(attName)+"s(); \r\n      this.syncUp(); \r\n      this.listenTo(app.mainView.model, 'change', this.syncUp); \r\n      this.listenTo(this.model, 'sync', this.render); \r\n      this.render(); \r\n    }, \r\n    syncUp: function() { \r\n      this.model.set({ \r\n        _id: app.mainView.model.id, \r\n        "+attName+"s: app.mainView.model.get('"+attName+"s') \r\n      }); \r\n    }, \r\n     render: function() { \r\n      this.$el.html(this.template( this.model.attributes )); \r\n \r\n      for (var key in this.model.attributes) { \r\n        if (this.model.attributes.hasOwnProperty(key)) { \r\n          this.$el.find('[name="+'"'+"'+ key +'"+'"'+"]').val(this.model.attributes[key]); \r\n        } \r\n      } \r\n    }, \r\n    add: function() { \r\n      var new"+initCap(attName)+" = this.$el.find('[name="+'"'+"new"+initCap(attName)+""+'"'+"]').val().trim(); \r\n      if (!new"+initCap(attName)+") { \r\n        alert('Please enter a name.'); \r\n        return; \r\n      } \r\n      else { \r\n        var alreadyAdded = false; \r\n        _.each(this.model.get('"+attName+"s'), function("+attName+") { \r\n          if (new"+initCap(attName)+" === "+attName+".name) { \r\n            alreadyAdded = true; \r\n          } \r\n        }); \r\n \r\n        if (alreadyAdded) { \r\n          alert('That name already exists.'); \r\n          return; \r\n        } \r\n      } \r\n \r\n      this.model.get('"+attName+"s').push({ name: new"+initCap(attName)+", permit: true }); \r\n \r\n      var sorted = this.model.get('"+attName+"s'); \r\n      sorted.sort(function(a, b) { \r\n        return a.name.toLowerCase() > b.name.toLowerCase(); \r\n      }); \r\n      this.model.set('"+attName+"s', sorted); \r\n \r\n      this.render(); \r\n    }, \r\n    allow: function(event) { \r\n      var idx = this.$el.find('.btn-allow').index(event.currentTarget); \r\n      this.model.get('"+attName+"s')[idx].permit = true; \r\n      this.render(); \r\n    }, \r\n    deny: function(event) { \r\n      var idx = this.$el.find('.btn-deny').index(event.currentTarget); \r\n      this.model.get('"+attName+"s')[idx].permit = false; \r\n      this.render(); \r\n    }, \r\n    delete: function(event) { \r\n      if (confirm('Are you sure?')) { \r\n        var idx = this.$el.find('.btn-delete').index(event.currentTarget); \r\n        this.model.get('"+attName+"s').splice(idx, 1); \r\n        this.render(); \r\n      } \r\n    }, \r\n    save"+initCap(attName)+"s: function() { \r\n      this.model.save(); \r\n    } \r\n  });\r\n\r\n  app.MainView = Backbone.View.extend"});
+					strPairs.push({
+						from 	: "app.deleteView = new app.DeleteView\\(\\);", 	
+						to 		: "app.deleteView = new app.DeleteView();\r\n      app."+attName+"sView = new app."+initCap(attName)+"sView();" });
+					strPairs.push({
+						from 	: "app.deleteView.model.set\\(response\\);\r\n            }\r\n          }\r\n        }\\);\r\n      }\r\n    }\r\n  }\\);\r\n\r\n  app.MainView = Backbone.View.extend", 	
+						to 		: "app.deleteView.model.set(response);\r\n            }\r\n          }\r\n        });\r\n      }\r\n    }\r\n  });\r\n\r\n  app."+initCap(attName)+"sView = Backbone.View.extend({ \r\n    el: '#"+attName+"s', \r\n    template: _.template( $('#tmpl-"+attName+"s').html() ), \r\n    events: { \r\n      'click .btn-add': 'add', \r\n      'click .btn-allow': 'allow', \r\n      'click .btn-deny': 'deny', \r\n      'click .btn-delete': 'delete', \r\n      'click .btn-set': 'save"+initCap(attName)+"s' \r\n    }, \r\n     initialize: function() { \r\n      this.model = new app."+initCap(attName)+"s(); \r\n      this.syncUp(); \r\n      this.listenTo(app.mainView.model, 'change', this.syncUp); \r\n      this.listenTo(this.model, 'sync', this.render); \r\n      this.render(); \r\n    }, \r\n    syncUp: function() { \r\n      this.model.set({ \r\n        _id: app.mainView.model.id, \r\n        "+attName+"s: app.mainView.model.get('"+attName+"s') \r\n      }); \r\n    }, \r\n     render: function() { \r\n      this.$el.html(this.template( this.model.attributes )); \r\n \r\n      for (var key in this.model.attributes) { \r\n        if (this.model.attributes.hasOwnProperty(key)) { \r\n          this.$el.find('[name="+'"'+"'+ key +'"+'"'+"]').val(this.model.attributes[key]); \r\n        } \r\n      } \r\n    }, \r\n    add: function() { \r\n      var new"+initCap(attName)+" = this.$el.find('[name="+'"'+"new"+initCap(attName)+'"'+"]').val().trim(); \r\n      if (!new"+initCap(attName)+") { \r\n        alert('Please enter a name.'); \r\n        return; \r\n      } \r\n      else { \r\n        var alreadyAdded = false; \r\n        _.each(this.model.get('"+attName+"s'), function("+attName+") { \r\n          if (new"+initCap(attName)+" === "+attName+".name) { \r\n            alreadyAdded = true; \r\n          } \r\n        }); \r\n \r\n        if (alreadyAdded) { \r\n          alert('That name already exists.'); \r\n          return; \r\n        } \r\n      } \r\n \r\n      this.model.get('"+attName+"s').push({ name: new"+initCap(attName)+", permit: true }); \r\n \r\n      var sorted = this.model.get('"+attName+"s'); \r\n      sorted.sort(function(a, b) { \r\n        return a.name.toLowerCase() > b.name.toLowerCase(); \r\n      }); \r\n      this.model.set('"+attName+"s', sorted); \r\n \r\n      this.render(); \r\n    }, \r\n    allow: function(event) { \r\n      var idx = this.$el.find('.btn-allow').index(event.currentTarget); \r\n      this.model.get('"+attName+"s')[idx].permit = true; \r\n      this.render(); \r\n    }, \r\n    deny: function(event) { \r\n      var idx = this.$el.find('.btn-deny').index(event.currentTarget); \r\n      this.model.get('"+attName+"s')[idx].permit = false; \r\n      this.render(); \r\n    }, \r\n    delete: function(event) { \r\n      if (confirm('Are you sure?')) { \r\n        var idx = this.$el.find('.btn-delete').index(event.currentTarget); \r\n        this.model.get('"+attName+"s').splice(idx, 1); \r\n        this.render(); \r\n      } \r\n    }, \r\n    save"+initCap(attName)+"s: function() { \r\n      this.model.save(); \r\n    } \r\n  });\r\n\r\n  app.MainView = Backbone.View.extend"});
+				}
 			}
 			strPairs.push({from : "keys: 'pivot name'", 	to : "keys: 'pivot name"+spacedAtts+"'" });
 			
@@ -451,6 +521,7 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 				for (j=0; j<template.files.length; j++) {
 					sourceFile = template.files[j].source;
 					targetFile = template.files[j].target || sourceFile;
+		console.log("targetFile = %s %s", targetDir, targetFile);
 					source = generatorPath+'/'+sourceDir+'/'+ sourceFile;
 					target = targetDir+'/'+ targetFile;
 					sourceStr = this.readFileAsString(source);
@@ -469,7 +540,15 @@ var DrywallGenerator = yeoman.generators.Base.extend({
 					"  app.post('/"+appName+"/"+keyWordPlural+"/', require('./views/"+appName+"/"+keyWordPlural+"/index').create);\n"+
 					"  app.get('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').read);\n"+
 					"  app.put('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').update);\n"+
-					"  app.delete('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').delete);\n\n";
+					"  app.delete('/"+appName+"/"+keyWordPlural+"/:id/', require('./views/"+appName+"/"+keyWordPlural+"/index').delete);\n";
+					
+			for (var k = 0; k < attsArr.length; k++) {
+				var attName = attsArr[k].name;
+				if (attsArr[k].type === "array") {	
+					appRoutesString = appRoutesString + "  app.put('/"+appName+"/"+keyWordPlural+"/:id/"+attName+"s/', require('./views/"+appName+"/"+keyWordPlural+"/index')."+attName+"s);\n";
+				}
+			}
+			appRoutesString = appRoutesString + "\n";
 					
 			insertBeforeString = routesSourceStr.lastIndexOf("//route not found"); // TODO find a more reliable way to insert routes before app.all
 			routesTargetStr = routesSourceStr.slice(0, insertBeforeString)+
