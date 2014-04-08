@@ -25,7 +25,8 @@
 			{"name": "image_id", "type": "string"}, 
 			{"name": "x_offset", "type": "string"}, 
 			{"name": "y_offset", "type": "string"},
-			{"name": "transform", "type": "array"}		
+			{"name": "transform", "type": "array"},
+			{"name": "ano", "type": "array"}
 		]
 	  }, 
 	  {"s" : "trial", "p" : "trials", "a" : 
